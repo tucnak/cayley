@@ -20,10 +20,10 @@ import (
 	"math"
 	"net/http"
 	"time"
+	"context"
 
 	"github.com/cayleygraph/cayley/clog"
 
-	"golang.org/x/net/context"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 
@@ -98,6 +98,17 @@ func initQuadStore(_ string, _ graph.Options) error {
 }
 
 func newQuadStore(_ string, options graph.Options) (graph.QuadStore, error) {
+	if options != nil {
+		if cc, ok := options["context"]; ok {
+			ctx, ok := cc.(context.Context)
+			if !ok {
+				return nil, errors.New("context option must be context.Context")
+			}
+
+			return &QuadStore{context: ctx}, nil
+		}
+	}
+
 	return &QuadStore{}, nil
 }
 
@@ -148,16 +159,6 @@ func (qs *QuadStore) checkValid(k *datastore.Key) (bool, error) {
 		return false, nil
 	}
 	return true, nil
-}
-
-func getContext(opts graph.Options) (context.Context, error) {
-	req := opts["HTTPRequest"].(*http.Request)
-	if req == nil {
-		err := errors.New("HTTP Request needed")
-		clog.Errorf("%v", err)
-		return nil, err
-	}
-	return appengine.NewContext(req), nil
 }
 
 func (qs *QuadStore) ForRequest(r *http.Request) (graph.QuadStore, error) {
